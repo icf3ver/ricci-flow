@@ -1,8 +1,10 @@
 use std::{u8, ops::{Mul, Neg}};
 
+use feo_math::linear_algebra::vector3::Vector3;
+
 #[derive(Clone, Debug)]
 struct Normals {
-    xyz: Vec<f32>
+    vec: Vec<[f32; 3]> // TODO: clean
 }
 impl Neg for Normals {
     type Output = Self;
@@ -43,24 +45,42 @@ impl Curvature {
 }
 
 
-#[derive(Clone, Copy, Debug)]
-struct PointCloud<'a> {
-    xyz: &'a [f32]
+#[derive(Clone, Debug)]
+struct PointCloud {
+    xyz: Vec<f32>
 }
-impl<'a> PointCloud<'a> {
-    /// Place holder function (Triangular prisms, and pyramids should handle all edge cases)
-    fn tri_prsm() -> PointCloud<'a> {
+impl PointCloud {
+    // Note: Triangular prisms, and pyramids should handle all edge cases
+
+    /// Initializes a point cloud for a triangular prism
+    fn tri_prsm() -> Self {
         PointCloud {
-            xyz: &[
+            xyz: vec![
                 f32::sqrt(3.0)/3.0, 0.0, 0.0,
-                todo!("easy enough next commit")
+                -f32::sqrt(3.0)/6.0, 0.5, 0.0,
+                -f32::sqrt(3.0)/6.0, -0.5, 0.0,
+                0.0, 0.0, f32::sqrt(2.0/3.0)
+            ]
+        }
+    }
+
+    /// Initializes a point cloud for a pyramid
+    #[allow(dead_code)]
+    fn rect_prsm() -> Self {
+        PointCloud {
+            xyz: vec![
+                0.5, 0.5, 0.0,
+                -0.5, 0.5, 0.0,
+                -0.5, -0.5, 0.0,
+                0.5, -0.5, 0.0,
+                0.0, 0.0, f32::sqrt(2.0)/2.0
             ]
         }
     }
 }
-impl<'a> Into<Mesh<'a>> for PointCloud<'a> {
+impl<'a> Into<Mesh<'a>> for PointCloud {
     fn into(self) -> Mesh<'a> {
-        todo!("tmr extract the faces trivial");
+        todo!("extract the faces");
     }
 }
 
@@ -79,7 +99,18 @@ impl<'a> Into<Curvature> for Mesh<'a> {
 }
 impl<'a> Into<Normals> for Mesh<'a> {
     fn into(self) -> Normals {
-        todo!("trivial")
+        // Counter Clockwise vertex ordering
+        Normals{
+            vec: {
+                self.faces.chunks(9).into_iter().map(|a: &[f32]| {
+                    // Smooth for now
+                    let v1 = Vector3::from(TryInto::<[f32; 3]>::try_into(&a[6..9]).unwrap()) - Vector3::from(TryInto::<[f32; 3]>::try_into(&a[3..6]).unwrap()); //.normalize(None)
+                    let v2 = Vector3::from(TryInto::<[f32; 3]>::try_into(&a[0..3]).unwrap()) - Vector3::from(TryInto::<[f32; 3]>::try_into(&a[3..6]).unwrap()); //.normalize(None)
+                    
+                    Vector3::cross_product(v1, v2).normalize(None).into()
+                }).collect::<Vec<[f32; 3]>>()
+            }
+        }
     }
 }
 
